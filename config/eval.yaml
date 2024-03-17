@@ -1,0 +1,105 @@
+#feeder
+feeder: feeder.feeder.Feeder
+train_feeder_args:
+  data_path: ../data/5x8_train_0_0.h5
+  selectTrain: True
+  useMotor: True
+test_feeder_args:
+  data_path: ../data/5x8_test_0_0.h5    #grasp_test_125.h5
+  selectTest: True
+  selectTrain: False
+  useMotor: True
+#model
+model_args:
+  do_center_loss: True
+  do_sparse_memupdate_loss: False
+  do_global_spatial_transformer: True
+  intention_size: 64
+  vision_args:
+    num_channels: 3
+    dim: 64
+    spatial_transformer_init: [-0.75,0.,0.]
+    low_level_memory: True
+    central_vision:
+      dim: 32
+      layers:
+        - hid_size: 256
+          kernel_size: 5
+          num_filter: 16
+          downscale_factor: 2
+          memory: True
+          memory_version: 0
+          memory_L1reg: -1
+          memory_transformer: True
+        - hid_size: 128
+          kernel_size: 5
+          num_filter: 32
+          downscale_factor: 2
+        - hid_size: 64
+          kernel_size: 5
+          num_filter: 64
+          downscale_factor: 2
+    peripheral_vision:
+      Enabled: False
+      dim: 32
+      layers:
+        - hid_size: 512
+          kernel_size: 5
+          num_filter: 16
+          downscale_factor: 2
+        - hid_size: 256
+          kernel_size: 5
+          num_filter: 32
+          downscale_factor: 2
+        - hid_size: 128
+          kernel_size: 5
+          num_filter: 64
+          downscale_factor: 2
+  motor_args:
+    is_softmax: True
+    num_joints: 6
+    joint_enc_dim: 10
+    readout_hid_size: 256
+    layers:
+      - hid_size: 256
+      - hid_size: 128
+      - hid_size: 64
+  language_args:
+    dim: 11 #4
+    layers:
+      - pb_size: 3
+      - hid_size: 3
+  integration_args:
+    layers:
+      - hid_size: 512
+        z_size: 10
+        tau: 1
+      - hid_size: 30
+        z_size: 3
+        tau: 10
+
+  attention_args:
+    readout_hid_size: 256
+    dim: 3
+num_context_frames: 1
+
+#optim
+weight_decay: 1e-8
+base_lr: 0.0005
+clip_grad: 0.2
+beta: 1e-4
+w1: 0.1
+w: 1e-3
+k: 10000
+#beta: 0.0 #1e-6
+
+# training
+plotlevel: 100
+phase: train
+device_ids: 0 #[0,1,2,3]
+batch_size: 1 #64
+test_batch_size: 5 #64
+num_epochs: 5000
+
+#used for folder prefix:
+evalversion: 1
