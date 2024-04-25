@@ -628,7 +628,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                          'logvar': intention_logvar[i_loss].cpu().detach().numpy(),
                          'pv_mu': pv_mu[i_loss].cpu().detach().numpy(),
                          'pv_logvar': pv_logvar[i_loss].cpu().detach().numpy(),
- Z                         'init_cell': initstates[0][i_loss].cpu().detach().numpy(),
+                         'init_cell': initstates[0][i_loss].cpu().detach().numpy(),
                          'init_hidden': initstates[1][i_loss].cpu().detach().numpy(),
                          'step': step,
                          'length': length_idxs[i_loss]}

@@ -84,7 +84,7 @@ class PVMTRNNCell(nn.Module):
 		self.fc_hh = nn.Linear(hidden_size, hidden_size)
 		# if top_h_size!=0:
 		# 	self.fc_hdh = nn.Linear(top_h_size, hidden_size)
-	def forward(self, x, h, mu_q, logvar_q, mu_p_i, logvar_p_i, pb=None, gen_prior=False, step=0):
+	def forward(self, x, h, mu_q, logvar_q, mu_p_i, logvar_p_i, gen_prior=False, step=0):
 		#compute prior and posterior
 		torch.manual_seed(0)
 		# x includes top down input if any
@@ -114,75 +114,6 @@ class PVMTRNNCell(nn.Module):
 		d = self.dropout(d)
 		return d, mu_p, sigma_p, zq
 
-# class PVMTRNNPBCell(nn.Module):
-# 	"""
-# 	Generate a PVMTRNN cell with PB
-# 	"""
-#
-# 	def __init__(self, hidden_size, z_size, pb_size, tau=1, input_size=None, dropout_rate=0.0):
-# 		super(PVMTRNNPBCell, self).__init__()
-# 		self.dropout = nn.Dropout(dropout_rate)
-# 		self.tau = tau
-# 		if input_size != 0:   # includes top down
-# 			self.fc_ih = nn.Linear(input_size, hidden_size)
-# 		self.fc_zh = nn.Linear(z_size, hidden_size)
-# 		self.fc_hmup = nn.Linear(hidden_size, z_size)
-# 		self.fc_hsigmap = nn.Linear(hidden_size, z_size)
-# 		self.fc_hh = nn.Linear(hidden_size, hidden_size)
-# 		self.fc_pbh = nn.Linear(pb_size, hidden_size)
-# 		# if top_h_size!=0:
-# 		# 	self.fc_hdh = nn.Linear(top_h_size, hidden_size)
-# 	def forward(self, x, h, mu_q, logvar_q, mu_p_i, logvar_p_i, pb=None, gen_prior=False, step=0):
-# 		#compute prior and posterior
-# 		# torch.manual_seed(0)
-# 		# x includes top down input if any
-# 		if step == 0:
-# 			mu_p = F.tanh(mu_p_i)
-# 			sigma_p = torch.exp(logvar_p_i)
-# 		else:
-# 			mu_p = F.tanh(self.fc_hmup(h))
-# 			sigma_p = torch.exp(self.fc_hsigmap(h))
-# 		mu_q = F.tanh(mu_q)
-# 		sigma_q = torch.exp(logvar_q)
-# 		zq = mu_q + sigma_q*torch.randn(sigma_q.size(), device=sigma_q.device)
-# 		zp = mu_p + sigma_p*torch.randn(sigma_p.size(), device=sigma_p.device)
-# 		# print("zshape={}".format(zq.shape))
-# 		if gen_prior: # generating from prior
-# 			if x is not None:
-# 				hx = (1 - 1 / self.tau) * h + (self.fc_ih(x) + self.fc_hh(h) + self.fc_zh(zp) + self.fc_pbh(pb)) / (self.tau)
-# 			else:
-# 				hx = (1 - 1 / self.tau) * h + (self.fc_hh(h) + self.fc_zh(zp) + self.fc_pbh(pb)) / (self.tau)
-# 		else: # generating from posterior
-# 			if x is not None:
-# 				hx = (1 - 1 / self.tau) * h + (self.fc_ih(x) + self.fc_hh(h) + self.fc_zh(zq) + self.fc_pbh(pb)) / (self.tau)
-# 			else:
-# 				hx = (1 - 1 / self.tau) * h + (self.fc_hh(h) + self.fc_zh(zq) + self.fc_pbh(pb)) / (self.tau)
-#
-# 		d = F.tanh(hx)
-# 		# d = self.dropout(d)
-# 		return d, mu_p, sigma_p, zq
-
-# class GRUCell(nn.Module):
-# 	def __init__(self, input_size, hidden_size, update_bias):
-# 		super(GRUCell, self).__init__()
-#
-# 		self.fc_ih = nn.Linear(input_size, 3 * hidden_size)
-# 		self.fc_hh = nn.utils.spectral_norm(nn.Linear(hidden_size, 3 * hidden_size))
-# 		self.update_bias = update_bias
-#
-# 	def forward(self, x, hx):
-#
-# 		gi = self.fc_ih(x)
-# 		gh = self.fc_hh(hx)
-# 		i_r, i_i, i_n = gi.chunk(3, 1)
-# 		h_r, h_i, h_n = gh.chunk(3, 1)
-#
-# 		resetgate = F.sigmoid(i_r + h_r)
-# 		inputgate = F.sigmoid(i_i + h_i + self.update_bias)
-# 		newgate = F.tanh(i_n + resetgate * h_n)
-# 		hy = newgate + inputgate * (hx - newgate)
-#
-# 		return hy
 
 def mlp(in_size, emb_dim, out_size, layer_norm=True, activate_final=None):
     modules = []

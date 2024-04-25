@@ -1,11 +1,11 @@
 #feeder
 feeder: feeder.feeder.Feeder
 train_feeder_args:
-  data_path: data/5x8comp1train_dataset0901.h5
+  data_path: ../data/5x8_256_comp1train_dataset0401.h5
   selectTrain: True
   useMotor: True
 test_feeder_args:
-  data_path: data/5x8comp1test_dataset0901.h5
+  data_path: ../data/5x8_256_comp1test_dataset0401.h5
   selectTest: True
   selectTrain: False
   useMotor: True
@@ -15,21 +15,21 @@ model_args:
   do_center_loss: True                        #extra loss for the focussed image for the first few hundred epochs of training
 #  do_sparse_memupdate_loss: False
   do_global_spatial_transformer: True
-  intention_size: 64
+  intention_size: 256
   vision_args:
     dropout_rate: 0.5
     cloop_ratio: 1
     num_channels: 3
-    dim: 64
+    dim: 256
     spatial_transformer_init: [0.2,0.,0.]       # initialized parameter values for attention transformer # [-0.75,0.,0.]
     spatial_transformer_maxZoom: 3.0
     low_level_memory: True                     # VWM-1
     canvas_delay: 3                            # delay for the buffer
     transformer_slope: 0.65                    # parameter for the affine transformation
     central_vision:
-      dim: 40
+      dim: 128
       layers:
-        - hid_size: 256                        #lowest layer = 0
+        - hid_size: 512                       #lowest layer = 0
           kernel_size: 5
           num_filter: 16
           downscale_factor: 2
@@ -38,11 +38,11 @@ model_args:
           memory_version: 0                    # version=9 for Jeff's model
           memory_L1reg: -1                     # default -1;  regularization for VWM-2
           memory_transformer: True
-        - hid_size: 128 #16
+        - hid_size: 256 #16
           kernel_size: 5
           num_filter: 32 #64
           downscale_factor: 2
-        - hid_size: 64
+        - hid_size: 128
           kernel_size: 5
           num_filter: 64
           downscale_factor: 2
@@ -56,9 +56,9 @@ model_args:
     joint_enc_dim: 10
     readout_hid_size: 256
     layers:
-      - hid_size: 256                       # lowest layer = 0
+      - hid_size: 512                       # lowest layer = 0
+      - hid_size: 256
       - hid_size: 128
-      - hid_size: 64
   language_args:                             # not used in Jeff's model
     dropout_rate: 0.5
     is_lang: True
@@ -93,7 +93,7 @@ k: 1
 plotlevel: 100
 phase: train
 device_ids: 0 #[0,1,2,3]
-batch_size: 80 #64
+batch_size: 5 #64
 num_epochs: 5000
 #testing
 test_batch_size: 1                          # there are some problems that needs to be fixed to have larger batch size for testing
