@@ -6,7 +6,7 @@ import h5py
 import torch
 import os
 import sys
-
+# Includes functions used for processing data
 class data_processing():
     def __init__(self, loc_name="folder", index="folder index", save_dir='save folder'):
         self.loc = loc_name
@@ -33,7 +33,7 @@ class data_processing():
         self.joints = 6
 
         self.joint_reference = np.linspace(-1, 1, self.joint_enc_dim)
-        # minVal = -0.0; maxVal = 1.0;
+        # minVal = -0.0; maxVal = 1.0;jus
         # motor_max = torch.tensor([ 19.657   ,  60.047001,  98.823997,  79.041   ,  21.955999, 100.024002]);
         # motor_min = torch.tensor([-15.674   ,  10.516   ,  38.513   ,  54.077999, -12.774   ,0.988   ]);
 
