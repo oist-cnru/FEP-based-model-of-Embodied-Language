@@ -18,7 +18,7 @@ model_args:
   intention_size: 256
   vision_args:
     dropout_rate: 0.5
-    cloop_ratio: 1
+    cloop_ratio: 0.9
     num_channels: 3
     dim: 256
     spatial_transformer_init: [0.2,0.,0.]       # initialized parameter values for attention transformer # [-0.75,0.,0.]
