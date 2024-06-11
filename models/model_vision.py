@@ -319,7 +319,7 @@ class Model_vision(nn.Module):
         self.is_lateral = motor_args['is_lateral']
         self.is_bottomup = motor_args['is_bottomup']
         self.L0Memory = False
-        # self.useL0Memory_v9 = False
+        self.useL0Memory_v9 = False
 
         self.useL0Memory_feedback_mem_to_lstm = True
         self.L0MemoryL1Reg = -1
@@ -977,30 +977,30 @@ class Model_vision(nn.Module):
                 if self.L0Memory_transformer is None:
                     L0Memory_selection = L0Memory
                 else:
-                    # if (self.useL0Memory_v9 == True):
-                    #     attention_cfg = attention_wheres[-2][:,self.attention_dim:]
-                    #     #limit scaling to 0.5 to 1.5
-                    #     attention_cfg[:,0]=F.sigmoid(attention_cfg[:,0])+0.5
-                    #     attention_cfg[:, 1] = F.sigmoid(attention_cfg[:, 1]) + 0.5
-                    #     #limit movement to +- 0.5
-                    #     attention_cfg[:, 2] = F.tanh(attention_cfg[:, 2])*0.5
-                    #     attention_cfg[:, 3] = F.tanh(attention_cfg[:, 3])*0.5
-                    #     L0Memory_selection = self.L0Memory_transformer.image_to_window(L0Memory, attention_cfg)
-                    # else:
-                    L0Memory_selection = self.L0Memory_transformer.image_to_window(L0Memory, attention_wheres[-1][:,self.attention_dim:])
+                    if (self.useL0Memory_v9 == True):
+                        attention_cfg = attention_wheres[-2][:,self.attention_dim:]
+                        #limit scaling to 0.5 to 1.5
+                        attention_cfg[:,0]=F.sigmoid(attention_cfg[:,0])+0.5
+                        attention_cfg[:, 1] = F.sigmoid(attention_cfg[:, 1]) + 0.5
+                        #limit movement to +- 0.5
+                        attention_cfg[:, 2] = F.tanh(attention_cfg[:, 2])*0.5
+                        attention_cfg[:, 3] = F.tanh(attention_cfg[:, 3])*0.5
+                        L0Memory_selection = self.L0Memory_transformer.image_to_window(L0Memory, attention_cfg)
+                    else:
+                        L0Memory_selection = self.L0Memory_transformer.image_to_window(L0Memory, attention_wheres[-1][:,self.attention_dim:])
                     #transform memOutmix as well ? static mask what to overwrite (before transformation?)
 
-                # if self.useL0Memory_v9 == True:
-                #     #Downsample Memory!
-                #     L0Memory_selection_downsampled = F.interpolate(L0Memory_selection, size=self.L0Memory_transformer_cv_dim)
-                #     L0MemoryOutMix_I = L0MemoryOutMix.clone()
-                #     #L0MemoryOutMix.register_hook(self.variable_hook2)
-                #     #L0MemoryOutMix_I.register_hook(self.variable_hook)
-                #     cv_pred_img = L0MemoryOutMix_I * cv_pred[:, vision_startIdx:] + (1. - L0MemoryOutMix_I) * L0Memory_selection_downsampled
-                #     # if self.training:
-                #     #     cv_pred_img = 0.9*cv_pred_img + 0.1*L0Memory_selection_downsampled # only for training
-                # else:
-                cv_pred_img = L0MemoryOutMix * cv_pred[:, vision_startIdx:] + (1. - L0MemoryOutMix) * L0Memory_selection
+                if self.useL0Memory_v9 == True:
+                    #Downsample Memory!
+                    L0Memory_selection_downsampled = F.interpolate(L0Memory_selection, size=self.L0Memory_transformer_cv_dim)
+                    L0MemoryOutMix_I = L0MemoryOutMix.clone()
+                    #L0MemoryOutMix.register_hook(self.variable_hook2)
+                    #L0MemoryOutMix_I.register_hook(self.variable_hook)
+                    cv_pred_img = L0MemoryOutMix_I * cv_pred[:, vision_startIdx:] + (1. - L0MemoryOutMix_I) * L0Memory_selection_downsampled
+                    # if self.training:
+                    #     cv_pred_img = 0.9*cv_pred_img + 0.1*L0Memory_selection_downsampled # only for training
+                else:
+                    cv_pred_img = L0MemoryOutMix * cv_pred[:, vision_startIdx:] + (1. - L0MemoryOutMix) * L0Memory_selection
 
                 if step >= self.num_context_frames:
                     # only after presenting context frames
@@ -1011,48 +1011,48 @@ class Model_vision(nn.Module):
                         # else:
                         L0MemoryFiltered = (1.0 - L0MemoryOutMix) * L0Memory_selection
                     ###########
-                    # if self.useL0Memory_v9 == True:
-                    #     # memory_states collection of canvas
-                    #     l0mem_delay_len = self.canvas_delay_time # 5 steps back in time!
-                    #     l0mem_idx = step - l0mem_delay_len - 1
-                    #     if l0mem_idx < 0:
-                    #         canvas_delay = canvas.data * 0
-                    #     else:
-                    #         canvas_delay = memory_states[l0mem_idx]
-                    #     # canvas_delay[memory_mix_mask<0.5]=0.0
-                    #     # update_signal = (memory_mix_mask>0.5).float() * canvas_delay #deleted content of memory
-                    #     # zero - infinite gradinent ?!
-                    #     # update_mask_L0Mem = cv_pred[:, 0:1]
-                    #     update_mask_L0Mem = self.transformer.window_to_image(cv_pred[:, 0:1], write_where,
-                    #                                      image_size=[self.config.v_dim,
-                    #                                                  self.config.v_dim])
-                    #     update_mask_L0Mem = torch.sigmoid((update_mask_L0Mem - self.transformer_slope) * 50.0)  # decision  to be 0 or one
-                    #     # update_mask_L0Mem = memory_mix_mask
-                    #     update_signal = update_mask_L0Mem * canvas_delay.data  # deleted content of memory
-                    #     l0memupdatemask_pred.append(cv_pred[:, 0:1])
-                    #     # L0Memory_updates.append(update_signal)
-                    #     update_signal = self.transformer_upscale.image_to_window(update_signal,  write_where[:,0:self.attention_dim].detach())
-                    #     L0MemoryMask_upscale = F.interpolate(L0MemoryMask, size=self.L0Memory_transformer_dim) #, mode='nearest' cv_dim*4
-                    #     update_signal_downsampled = F.interpolate(update_signal, size=self.L0Memory_transformer_cv_dim)
-                    #     # for plotting
-                    #     L0Memory_updates.append(update_signal_downsampled)
-                    #     canvas_.append(canvas_delay.data)
-                    #     l0mem_updatemask.append(update_mask_L0Mem)
-                    #     L0_memselection.append(L0Memory_selection)
-                    #     L0_memmaskupscale.append(L0MemoryMask_upscale)
-                    #     # dynamic memory, memory always follows update
-                    #     # VWM-2
-                    #     L0Memory = (1. - L0MemoryMask_upscale) * L0Memory_selection + L0MemoryMask_upscale * update_signal.detach()
+                    if self.useL0Memory_v9 == True:
+                        # memory_states collection of canvas
+                        l0mem_delay_len = self.canvas_delay_time # 5 steps back in time!
+                        l0mem_idx = step - l0mem_delay_len - 1
+                        if l0mem_idx < 0:
+                            canvas_delay = canvas.data * 0
+                        else:
+                            canvas_delay = memory_states[l0mem_idx]
+                        # canvas_delay[memory_mix_mask<0.5]=0.0
+                        # update_signal = (memory_mix_mask>0.5).float() * canvas_delay #deleted content of memory
+                        # zero - infinite gradinent ?!
+                        # update_mask_L0Mem = cv_pred[:, 0:1]
+                        update_mask_L0Mem = self.transformer.window_to_image(cv_pred[:, 0:1], write_where,
+                                                         image_size=[self.config.v_dim,
+                                                                     self.config.v_dim])
+                        update_mask_L0Mem = torch.sigmoid((update_mask_L0Mem - self.transformer_slope) * 50.0)  # decision  to be 0 or one
+                        # update_mask_L0Mem = memory_mix_mask
+                        update_signal = update_mask_L0Mem * canvas_delay.data  # deleted content of memory
+                        l0memupdatemask_pred.append(cv_pred[:, 0:1])
+                        # L0Memory_updates.append(update_signal)
+                        update_signal = self.transformer_upscale.image_to_window(update_signal,  write_where[:,0:self.attention_dim].detach())
+                        L0MemoryMask_upscale = F.interpolate(L0MemoryMask, size=self.L0Memory_transformer_dim) #, mode='nearest' cv_dim*4
+                        update_signal_downsampled = F.interpolate(update_signal, size=self.L0Memory_transformer_cv_dim)
+                        # for plotting
+                        L0Memory_updates.append(update_signal_downsampled)
+                        canvas_.append(canvas_delay.data)
+                        l0mem_updatemask.append(update_mask_L0Mem)
+                        L0_memselection.append(L0Memory_selection)
+                        L0_memmaskupscale.append(L0MemoryMask_upscale)
+                        # dynamic memory, memory always follows update
+                        # VWM-2
+                        L0Memory = (1. - L0MemoryMask_upscale) * L0Memory_selection + L0MemoryMask_upscale * update_signal.detach()
                     #
-                    # else:
-                    L0Memory = (1. - L0MemoryMask) * L0Memory + L0MemoryMask * cv_pred_img
-                    # for plotting
-                    L0Memory_updates.append(torch.zeros_like(L0MemoryMask))
-                    L0_memselection.append(L0Memory_selection)
-                    L0_memmaskupscale.append(L0MemoryMask)
-                    canvas_.append(torch.zeros_like(L0MemoryMask))
-                    l0mem_updatemask.append(torch.zeros_like(L0MemoryMask))
-                    l0memupdatemask_pred.append(cv_pred[:, 0:1])
+                    else:
+                        L0Memory = (1. - L0MemoryMask) * L0Memory + L0MemoryMask * cv_pred_img
+                        # for plotting
+                        L0Memory_updates.append(torch.zeros_like(L0MemoryMask))
+                        L0_memselection.append(L0Memory_selection)
+                        L0_memmaskupscale.append(L0MemoryMask)
+                        canvas_.append(torch.zeros_like(L0MemoryMask))
+                        l0mem_updatemask.append(torch.zeros_like(L0MemoryMask))
+                        l0memupdatemask_pred.append(cv_pred[:, 0:1])
 
                     # calc regularization if necessary:
                     if self.L0MemoryL1Reg > 0:
@@ -1195,28 +1195,27 @@ class Model_vision(nn.Module):
                 v_predictions.append(v_pred)
                 if m_pred is not None: m_predictions.append(m_pred)
 
-                # if gen_evaldata or (self.useL0Memory_v9 == True):
-                #     memory_states.append(canvas)
-                #     memory_feedback.append(prev_canvas_filtered)
-                #     if plotlevel >= 10:
-                #         v_mask_memup_states.append(memory_mix_mask)  # cv_pred[:,1:2]
-                #     v_mask_memout_states.append(v_pred__mix_mask)
-                #
-                #     if self.useL0Memory and plotlevel >= 10:
-                #         if self.useL0Memory_v9 == True:
-                #             L0Memory_downsampled = F.interpolate(L0Memory,size=self.L0Memory_transformer_cv_dim)
-                #             L0Memory_states.append(L0Memory_downsampled)
-                #             if self.L0Memory_transformer is not None:
-                #                 L0Memory_states_transformed.append(L0Memory_selection_downsampled)
-                #
-                #             L0Memory_states_feedback.append(L0MemoryMask)
-                #             L0Memory_states_outmix.append(L0MemoryOutMix)
-                #         else:
-                #             L0Memory_states.append(L0Memory)
-                #             if self.L0Memory_transformer is not None:
-                #                 L0Memory_states_transformed.append(L0Memory_selection)
-                #             L0Memory_states_feedback.append(L0MemoryMask)
-                #             L0Memory_states_outmix.append(L0MemoryOutMix)
+
+                memory_states.append(canvas)
+                memory_feedback.append(prev_canvas_filtered)
+                v_mask_memup_states.append(memory_mix_mask)  # cv_pred[:,1:2]
+                v_mask_memout_states.append(v_pred__mix_mask)
+
+                if self.useL0Memory:
+                    if self.useL0Memory_v9 == True:
+                        L0Memory_downsampled = F.interpolate(L0Memory,size=self.L0Memory_transformer_cv_dim)
+                        L0Memory_states.append(L0Memory_downsampled)
+                        if self.L0Memory_transformer is not None:
+                            L0Memory_states_transformed.append(L0Memory_selection_downsampled)
+
+                        L0Memory_states_feedback.append(L0MemoryMask)
+                        L0Memory_states_outmix.append(L0MemoryOutMix)
+                    else:
+                        L0Memory_states.append(L0Memory)
+                        if self.L0Memory_transformer is not None:
+                            L0Memory_states_transformed.append(L0Memory_selection)
+                        L0Memory_states_feedback.append(L0MemoryMask)
+                        L0Memory_states_outmix.append(L0MemoryOutMix)
                 # else:
                 #     memory_states.append(canvas)
                 #     memory_feedback.append(prev_canvas_filtered)
@@ -1229,40 +1228,40 @@ class Model_vision(nn.Module):
 
         # if gen_evaldata or (self.useL0Memory_v9 == True):      # this part can be ignored
         #
-        #     v_mask_mix_states = []
-        #     if len(v_mask_memout_states) > 0:
-        #         v_mask_memout_states = torch.stack(v_mask_memout_states, dim=1)
-        #     if len(v_mask_memup_states) > 0:
-        #         v_mask_memup_states = torch.stack(v_mask_memup_states, dim=1)
-        #         self.v_mask_memup_states =v_mask_memup_states
-        #     if len(self.v_mask_memup_states_wnd) > 0:
-        #         self.v_mask_memup_states_wnd = torch.stack(self.v_mask_memup_states_wnd, dim=1)
-        #     if len(memory_states) > 0:
-        #         memory_states = torch.stack(memory_states, dim=1)
-        #     if len(memory_feedback) > 0:
-        #         memory_feedback = torch.stack(memory_feedback, dim=1)
-        #
-        #     if self.useL0Memory:
-        #         if len(L0Memory_states) > 0:
-        #             L0Memory_states = torch.stack(L0Memory_states, dim=1)
-        #         if len(L0Memory_states_feedback) > 0:
-        #             L0Memory_states_feedback = torch.stack(L0Memory_states_feedback, dim=1)
-        #         if len(L0Memory_states_outmix) > 0:
-        #             L0Memory_states_outmix = torch.stack(L0Memory_states_outmix, dim=1)
-        #         if len(L0Memory_states_transformed) > 0:
-        #             L0Memory_states_transformed = torch.stack(L0Memory_states_transformed, dim=1)
-        #         if len(L0Memory_updates) > 0:
-        #             L0Memory_updates = torch.stack(L0Memory_updates, dim=1)
-        #         if len(L0_memselection) > 0:
-        #             L0_memselection = torch.stack(L0_memselection, dim=1)
-        #         if len(L0_memmaskupscale) > 0:
-        #             L0_memmaskupscale = torch.stack(L0_memmaskupscale, dim=1)
-        #         if len(canvas_) > 0:
-        #             canvas_ = torch.stack(canvas_, dim=1)
-        #         if len(l0mem_updatemask) > 0:
-        #             l0mem_updatemask = torch.stack(l0mem_updatemask, dim=1)
-        #         if len(l0memupdatemask_pred) > 0:
-        #             l0memupdatemask_pred = torch.stack(l0memupdatemask_pred, dim=1)
+        v_mask_mix_states = []
+        if len(v_mask_memout_states) > 0:
+            v_mask_memout_states = torch.stack(v_mask_memout_states, dim=1)
+        if len(v_mask_memup_states) > 0:
+            v_mask_memup_states = torch.stack(v_mask_memup_states, dim=1)
+            self.v_mask_memup_states =v_mask_memup_states
+        if len(self.v_mask_memup_states_wnd) > 0:
+            self.v_mask_memup_states_wnd = torch.stack(self.v_mask_memup_states_wnd, dim=1)
+        if len(memory_states) > 0:
+            memory_states = torch.stack(memory_states, dim=1)
+        if len(memory_feedback) > 0:
+            memory_feedback = torch.stack(memory_feedback, dim=1)
+
+        if self.useL0Memory:
+            if len(L0Memory_states) > 0:
+                L0Memory_states = torch.stack(L0Memory_states, dim=1)
+            if len(L0Memory_states_feedback) > 0:
+                L0Memory_states_feedback = torch.stack(L0Memory_states_feedback, dim=1)
+            if len(L0Memory_states_outmix) > 0:
+                L0Memory_states_outmix = torch.stack(L0Memory_states_outmix, dim=1)
+            if len(L0Memory_states_transformed) > 0:
+                L0Memory_states_transformed = torch.stack(L0Memory_states_transformed, dim=1)
+            if len(L0Memory_updates) > 0:
+                L0Memory_updates = torch.stack(L0Memory_updates, dim=1)
+            if len(L0_memselection) > 0:
+                L0_memselection = torch.stack(L0_memselection, dim=1)
+            if len(L0_memmaskupscale) > 0:
+                L0_memmaskupscale = torch.stack(L0_memmaskupscale, dim=1)
+            if len(canvas_) > 0:
+                canvas_ = torch.stack(canvas_, dim=1)
+            if len(l0mem_updatemask) > 0:
+                l0mem_updatemask = torch.stack(l0mem_updatemask, dim=1)
+            if len(l0memupdatemask_pred) > 0:
+                l0memupdatemask_pred = torch.stack(l0memupdatemask_pred, dim=1)
 
         v_mask_states = [v_mask_mix_states, v_mask_memout_states, v_mask_memup_states]
 

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import transforms
+# from torchvision import transforms
 
 from opt import load_arg
 from utils import IO, import_class
@@ -415,29 +415,11 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 lr=args.base_lr * 10 * 50,
                 )
             }
-        # else:
-        #     regression_optimizer['mu'] = optim.Adam(
-        #         [target_intention_params[i]['mu'] for i in indices],
-        #         lr=args.base_lr * 10 * 1,
-        #     )
-        #     regression_optimizer['logvar'] = optim.Adam(
-        #             [target_intention_params[i]['logvar'] for i in indices],
-        #             lr=args.base_lr * 10 * 1,
-        #         )
-        # if args.model_args['integration_args']["is_integpb"]:
-        #     regression_optimizer['integ_pb'] = optim.Adam([target_intention_integpbs[i] for i in indices],
-        #                                                 lr=args.base_lr * 10 * 30,
-        #                                                 )
-        #
-        if args.model_args['language_args']["is_lang"]:
-            if args.model_args['language_args']["is_pb"]:
-                regression_optimizer['lang_pb'] = optim.Adam([target_intention_pbs[i] for i in indices],
-                                            lr=args.base_lr * 10 * 30,
-                                            )
-            else:
-                regression_optimizer['lang_init_state'] = optim.Adam([target_intention_lang_inits[i] for i in indices],
-                                                    lr=args.base_lr * 10 * 30,
-                                                    )
+
+        regression_optimizer['lang_pb'] = optim.Adam([target_intention_pbs[i] for i in indices],
+                                    lr=args.base_lr * 10 * 30,
+                                    )
+
         indices_rep = indices.repeat(sample_size)
         indices_local_rep=torch.tensor(indices_local).repeat(sample_size)
 
@@ -614,8 +596,8 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 #     kl_loss = torch.zeros(1)
                     loss = _loss + pv_kl
 
-                print("v_loss:{:.6f} | m_loss:{:.6f} | l_loss:{:.6f} | pv_kl:{:.6f} | kld:{:.6f}".format(
-                    v_loss.data.item(), m_loss.data.item(), l_loss.data.item(), pv_kl.data.item(), kl_loss.data.item()))
+                print("v_loss:{:.6f} | m_loss:{:.6f} | l_loss:{:.6f} | pv_kl:{:.6f}".format(
+                    v_loss.data.item(), m_loss.data.item(), l_loss.data.item(), pv_kl.data.item()))
             # save log of states:
 
             plot_idxs=[]
@@ -628,8 +610,8 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                          'logvar': intention_logvar[i_loss].cpu().detach().numpy(),
                          'pv_mu': pv_mu[i_loss].cpu().detach().numpy(),
                          'pv_logvar': pv_logvar[i_loss].cpu().detach().numpy(),
-                         'init_cell': initstates[0][i_loss].cpu().detach().numpy(),
-                         'init_hidden': initstates[1][i_loss].cpu().detach().numpy(),
+                         # 'init_cell': initstates[0][i_loss].cpu().detach().numpy(),
+                         # 'init_hidden': initstates[1][i_loss].cpu().detach().numpy(),
                          'step': step,
                          'length': length_idxs[i_loss]}
                 c_min_loss = optimization_results[indices_local_rep[i_loss]]['min_loss']
@@ -688,7 +670,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     traj_pred = m_predictions[i_loss].detach().cpu().detach()
                     traj_target = m_targets[i_loss].detach().cpu().detach()
 
-                    inte_states = int_states
+                    # inte_states = int_states
 
                     optimization_results[indices_local_rep[i_loss]]['min_vis']={'pred': vision_predictions.numpy(),
                                                                           'cv_pred': cv_prediction.numpy(),
@@ -698,7 +680,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                                                                           # 'v_mask': v_masks.numpy(),
                                                                           'traj_pred': traj_pred.numpy(),
                                                                           'traj_target': traj_target.numpy(),
-                                                                          'integration_states': inte_states,
+                                                                          # 'integration_states': inte_states,
                                                                           'm_cv_states': m_cv_state,
                                                                           'v_states': v_state,
                                                                           'l0mem_selection': l0mem_selection,
@@ -734,43 +716,27 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
             # print("lang_init = {}".format(lang_intention[0]))
             # print("_lang init = {}".format(target_intention_lang_inits[0].detach().cpu().numpy()))
 
-            if args.model_args['integration_args']['is_pvrnn']:
-                regression_optimizer['pv_mu'].zero_grad()
-                regression_optimizer['pv_logvar'].zero_grad()
-                if not args.model_args['integration_args']["is_UG"]:
-                    regression_optimizer['pvrnn_prior_i']['mu'].zero_grad()
-                    regression_optimizer['pvrnn_prior_i']['logvar'].zero_grad()
-            else:
-                regression_optimizer['mu'].zero_grad()
-                regression_optimizer['logvar'].zero_grad()
-            if args.model_args['integration_args']['is_integpb']:
-                regression_optimizer['integ_pb'].zero_grad()
-            if args.model_args['language_args']['is_lang']:
-                if args.model_args['language_args']['is_pb']:
-                    regression_optimizer['lang_pb'].zero_grad()
-                    print("pb={}".format(lang_pbs.detach().cpu().numpy().mean()))
-                # else:
-                #     regression_optimizer['lang_init_state'].zero_grad()
-                #     print("lang_init_state={}".format(lang_init_states.detach().cpu().numpy().mean()))
+
+            regression_optimizer['pv_mu'].zero_grad()
+            regression_optimizer['pv_logvar'].zero_grad()
+            if not args.model_args['integration_args']["is_UG"]:
+                regression_optimizer['pvrnn_prior_i']['mu'].zero_grad()
+                regression_optimizer['pvrnn_prior_i']['logvar'].zero_grad()
+
+            regression_optimizer['lang_pb'].zero_grad()
 
             loss.backward()
             # norm = nn.utils.clip_grad_norm([intention_params[0]], 1)
             # print(norm)
             # norm = nn.utils.clip_grad_norm([intention_params[i]], 1)
-            if args.model_args['integration_args']['is_pvrnn']:
-                regression_optimizer['pv_mu'].step()
-                regression_optimizer['pv_logvar'].step()
-                if not args.model_args['integration_args']["is_UG"]:
-                    regression_optimizer['pvrnn_prior_i']['mu'].step()
-                    regression_optimizer['pvrnn_prior_i']['logvar'].step()
-            else:
-                regression_optimizer['mu'].step()
-                regression_optimizer['logvar'].step()
-            if args.model_args['integration_args']['is_integpb']:
-                regression_optimizer['integ_pb'].step()
-            if args.model_args['language_args']['is_lang']:
-                if args.model_args['language_args']['is_pb']:
-                    regression_optimizer['lang_pb'].step()
+
+            regression_optimizer['pv_mu'].step()
+            regression_optimizer['pv_logvar'].step()
+            if not args.model_args['integration_args']["is_UG"]:
+                regression_optimizer['pvrnn_prior_i']['mu'].step()
+                regression_optimizer['pvrnn_prior_i']['logvar'].step()
+
+            regression_optimizer['lang_pb'].step()
                 # else:
                 #     regression_optimizer['lang_init_state'].step()
 
@@ -921,7 +887,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
             else:
                 title = "motor"
             # ib_state = optimization_results[i]['min_vis']['bind_states']
-            integration_states = optimization_results[i]['min_vis']['integration_states']
+            # integration_states = optimization_results[i]['min_vis']['integration_states']
             # pvrnn_d = optimization_results[i]['min_vis']['pvrnn_d']
             v_states = optimization_results[i]['min_vis']['v_states']
             l0mem_selection = optimization_results[i]['min_vis']['l0mem_selection']
@@ -959,7 +925,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
             softmax_config = np.load("softmax_config.npy", allow_pickle=True)
             io.save_mot(m_pred,  foldernames[i]+'/m_pred')
             io.save_mot(m_target,  foldernames[i]+'/m_target')
-            b_state_dict = { "integration_states": integration_states,
+            b_state_dict = {
                         "v": v_states, "m_cv": m_cv_states,
                         "mu_p": mu_p, "sigma_p": sigma_p, "mu_q": mu_q, "sigma_q": sigma_q,
                         "m_pred":m_pred, "m_targ": m_target}  #integ_states': ib_state,
