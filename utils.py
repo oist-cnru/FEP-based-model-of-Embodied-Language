@@ -52,7 +52,7 @@ class IO():
     # PaviLogger is removed in this version
     def log(self, *args, **kwargs):
         pass
-    #     try:
+    #     try:00
     #         if self.pavi_logger is None:
     #             from torchpack.runner.hooks import PaviLogger
     #             url = 'http://pavi.parrotsdnn.org/log'
@@ -139,6 +139,27 @@ class IO():
                 sent_vec, _ = dp.lang_vec(sent, max_len=5)
                 sentences_vecs.append(np.array(sent_vec))
         return sentences, sentences_vecs
+
+    def latent_state_plot(self, lang_latent_state, lang_labels, **params):
+        """
+        langauge latent state and language labels should be an ordered pair
+        """
+        #generate corpus
+        nouns = ['red', 'green', 'blue', 'purple', 'yellow']
+        verbs = ['grasp . . .', 'move left . .', 'move right . .', 'move front . .', 'move back . .', 'put on green .',
+                 'put on blue .', 'put on yellow .']
+        sentences, sentences_vecs = self.sents()
+        #compute the kpca of latent states
+        kpca_2d = self.kpca(nc=2, kernel="linear")
+
+        lang_states = torch.from_numpy(lang_latent_state)
+        lkpca2d = kpca_2d.fit_transform(lang_latent_state)  #
+        kpca2d_1 = [lkpca2d[i][0] for i in range(len(lkpca2d))]
+        kpca2d_2 = [lkpca2d[i][1] for i in range(len(lkpca2d))]
+        # put them in a list
+        lang_states_kpca2d = [[kpca2d_1[i], kpca2d_2[i]] for i in range(len(kpca2d_1))]
+
+
 
 
     def get_mean_latent(self, latent_pca_1, latent_pca_2, latent_state_labels):

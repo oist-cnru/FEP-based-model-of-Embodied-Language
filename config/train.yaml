@@ -1,11 +1,11 @@
 #feeder
 feeder: feeder.feeder.Feeder
 train_feeder_args:
-  data_path: ../data/5x8_256_comp1train_dataset0401.h5
+  data_path: ../data/groupA1train.h5
   selectTrain: True
   useMotor: True
 test_feeder_args:
-  data_path: ../data/5x8_256_comp1test_dataset0401.h5
+  data_path: ../data/groupA1testcomp.h5
   selectTest: True
   selectTrain: False
   useMotor: True
@@ -20,16 +20,16 @@ model_args:
     dropout_rate: 0.5
     cloop_ratio: 0.9
     num_channels: 3
-    dim: 256
+    dim: 64
     spatial_transformer_init: [0.2,0.,0.]       # initialized parameter values for attention transformer # [-0.75,0.,0.]
     spatial_transformer_maxZoom: 3.0
     low_level_memory: True                     # VWM-1
     canvas_delay: 3                            # delay for the buffer
     transformer_slope: 0.65                    # parameter for the affine transformation
     central_vision:
-      dim: 128
+      dim: 40
       layers:
-        - hid_size: 512                       #lowest layer = 0
+        - hid_size: 256                       #lowest layer = 0
           kernel_size: 5
           num_filter: 16
           downscale_factor: 2
@@ -38,11 +38,11 @@ model_args:
           memory_version: 0                    # version=9 for Jeff's model
           memory_L1reg: -1                     # default -1;  regularization for VWM-2
           memory_transformer: True
-        - hid_size: 256 #16
+        - hid_size: 128 #16
           kernel_size: 5
           num_filter: 32 #64
           downscale_factor: 2
-        - hid_size: 128
+        - hid_size: 64
           kernel_size: 5
           num_filter: 64
           downscale_factor: 2
@@ -56,9 +56,9 @@ model_args:
     joint_enc_dim: 10
     readout_hid_size: 256
     layers:
-      - hid_size: 512                       # lowest layer = 0
-      - hid_size: 256
+      - hid_size: 256                       # lowest layer = 0
       - hid_size: 128
+      - hid_size: 64
   language_args:                             # not used in Jeff's model
     dropout_rate: 0.5
     is_lang: True
@@ -68,26 +68,26 @@ model_args:
       - hid_size: 40
         pb_size: 20
 # integration layers
-  integration_args: # just for pvrnn the layer order is reversed, layer 0 is the lowest layer
+  integration_args:                          # just for pvrnn the layer order is reversed, layer 0 is the lowest layer
     dropout_rate: 0.2
     is_UG: True                              # the pvrnn prior for the first step
     layers:
       - hid_size: 256
         z_size: 20                           # only for pvrnn
         w1: 1                                # only for pvrnn
-        w: 0.05                             # only for pvrnn
+        w: 0.05                              # only for pvrnn
         tau: 50                              # only for pvrnn
   attention_args:
     readout_hid_size: 256
     dim: 3
-num_context_frames: 1
+num_context_frames: 1                        # number of context frames provided to the network
 
 #optim
 weight_decay: 1e-5
 base_lr: 0.0005
 clip_grad: 0.2
 beta: 1e-2
-k: 1
+k: 1                                        # binding coefficient
 
 # training
 plotlevel: 100

@@ -3,14 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-
 from opt import load_arg
 from utils import IO, import_class
 from models import Model_vision, masked_loss, kl_criterion, kl_fixed_logvar_criterion
-
 import numpy as np
 import time
-
 
 torch.set_num_threads(4)
 
@@ -23,7 +20,6 @@ if is_half_precision:
 
 args = load_arg()
 device_ids = [args.device_ids] if isinstance(args.device_ids, int) else list(args.device_ids)
-
 
 plotlevel= args.plotlevel #10-all, 5-low, 0-none
 
@@ -112,20 +108,20 @@ if args.checkpoint_path:
     model.load_state_dict(checkpoint['model'])
     # intention_params = checkpoint['intention']
 
-v_criterion = nn.MSELoss(reduction='none')#size_average=False, reduce=False)      # vison loss
+v_criterion = nn.MSELoss(reduction='none')     # vison loss
 if args.model_args['motor_args'].get('is_softmax',True):
-    m_criterion = nn.KLDivLoss(reduction='none')#(size_average=False, reduce=False)    # motor loss
+    m_criterion = nn.KLDivLoss(reduction='none') # motor loss
 else:
-    m_criterion = nn.MSELoss(reduction='none')  # (size_average=False, reduce=False)    # motor loss
-# a_criterion = nn.MSELoss(reduction='none')#(size_average=False, reduce=False)      # attention regularization loss
+    m_criterion = nn.MSELoss(reduction='none')    # motor loss
 cv_center_loss_criterion = nn.MSELoss(reduction='none')
+# langauge loss function
 if args.lang_loss == 'mse':
     l_criterion = nn.MSELoss(reduction='none')
 elif args.lang_loss =='bce':
     l_criterion = nn.BCELoss(reduction='none')
 elif args.lang_loss =='kld':
     l_criterion = nn.KLDivLoss(reduction='none')
-elif args.lang_loss =='ce':  #doesn't work I have to change language output activation
+elif args.lang_loss =='ce':  #doesn't work unless to change language output activation
     l_criterion = nn.CrossEntropyLoss(reduction='none')
 
 b_criterion = nn.MSELoss(reduction='mean')
@@ -151,7 +147,7 @@ if args.use_gpu:
     if len(device_ids) > 1:
         model = nn.DataParallel(model, device_ids=device_ids)
 
-# load optim
+# load optimizer
 optimizer = dict()
 optimizer['model'] = optim.Adam(
     model.parameters(),
@@ -194,9 +190,6 @@ optimizer['lang_pb'] = \
                         lr=args.base_lr * 10 * 3,
                         ) for n in range(num_train_samples)]}
 
-
-# get the coefficients from args
-# beta = args.beta
 K = args.k
 target_reg_dynmodel = model.L0MemoryL1Reg
 model.L0MemoryL1Reg=0
@@ -298,7 +291,7 @@ def train(meta_info):
 
         if len(motors) > 0: m_loss = masked_loss(m_criterion, m_predictions, m_targets, mask_targets)
 
-        loss = 10*v_loss + 1*m_loss
+        loss = v_loss + m_loss
 
         lossfactor = (float(meta_info['epoch']) / 500.0) - 1.0
         if lossfactor <= 0:
@@ -335,7 +328,6 @@ def train(meta_info):
                 cv_center_loss=cv_center_loss*lossfactor
                 loss += cv_center_loss
 
-
         optimizer['model'].zero_grad()
 
         if args.model_args['integration_args']['is_UG'] == False:
@@ -346,7 +338,6 @@ def train(meta_info):
 
             optimizer['pvrnn_posterior']['mu'][i].zero_grad()
             optimizer['pvrnn_posterior']['logvar'][i].zero_grad()
-
 
         loss.backward()
 
@@ -361,8 +352,6 @@ def train(meta_info):
             norm += nn.utils.clip_grad_norm_(pvrnn_prior_mu_i, args.clip_grad)
             norm += nn.utils.clip_grad_norm_(pvrnn_prior_logvar_i, args.clip_grad)
 
-
-
         optimizer['model'].step()
 
         if args.model_args['integration_args']['is_UG'] == False:
@@ -372,7 +361,6 @@ def train(meta_info):
             optimizer['lang_pb']['lang_pb'][i].step()
             optimizer['pvrnn_posterior']['mu'][i].step()
             optimizer['pvrnn_posterior']['logvar'][i].step()
-
 
         # statistics
         epoloss += loss.data.item()
