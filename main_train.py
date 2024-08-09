@@ -8,6 +8,8 @@ from utils import IO, import_class
 from models import Model_vision, masked_loss, kl_criterion, kl_fixed_logvar_criterion
 import numpy as np
 import time
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 torch.set_num_threads(4)
 
@@ -48,7 +50,14 @@ data_loader['train'] = DataLoader(
     num_workers=0,#args.num_workers * len(device_ids),
     drop_last=False
 )
-
+test_feeder = Feeder(**args.test_feeder_args)
+num_test_samples = len(test_feeder)
+data_loader['test'] = DataLoader(
+    dataset=test_feeder,
+    batch_size=args.test_batch_size,
+    shuffle=False,
+    num_workers=0#args.num_worker * ngpu(self.arg.device)
+)
 l_seq_len, lang_dim = train_feeder[0][3].shape[0], train_feeder[0][3].shape[1]
 seq_len, _ = train_feeder[0][2].shape[0], train_feeder[0][2].shape[1]
 
@@ -71,16 +80,28 @@ pb_size = args.model_args['language_args']['layers'][0]['pb_size']
 
 lang_pb = []
 lang_train_labels = []
+lang_test_labels = []
 loader1 = data_loader['train']
+nc_pb = args.model_args['language_args']['layers'][0]['pb_size']
+pca_pb = PCA(n_components=nc_pb)
+lang_i = torch.zeros((num_train_samples, l_seq_len, lang_dim))
+loader_t = data_loader['test']
+lang_t = torch.zeros((num_test_samples, l_seq_len, lang_dim))
 
 for indices, visions, motors, language, masks, lang_masks in loader1:
     lang = language.float()
     lang_train_labels.append(lang)
 
+for indices, visions, motors, language, masks, lang_masks in loader_t:
+    lang = language.float()
+    lang_test_labels.append(lang)
+    lang_t[indices, :, :] = lang
+pca_pb_train, pca_pb_test = io.pca_init(pca_pb, lang_i, lang_t)
 for i in range(len(train_feeder)):
     if args.model_args['language_args']["is_lang"]:
-        lang_pb.append(nn.Parameter(F.tanh(torch.zeros(pb_size).clone().detach().cuda(args.cuda))))
-
+        # lang_pb.append(nn.Parameter(F.tanh(torch.zeros(pb_size).clone().detach().cuda(args.cuda))))
+        lang_pb.append(nn.Parameter(F.tanh(pca_pb_train[i].clone().detach().cuda(args.cuda))))
+        # lang_pb.append(torch.randn_like(F.tanh(pca_pb_train[i].clone().detach().cuda(args.cuda))))
 posterior_params = []
 for _ in range(num_train_samples):
     posterior_param = {'mu': nn.Parameter(model.create_init_states()), 'logvar': nn.Parameter(model.create_init_states())}

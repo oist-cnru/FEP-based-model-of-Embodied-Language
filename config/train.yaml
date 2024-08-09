@@ -1,11 +1,11 @@
 #feeder
 feeder: feeder.feeder.Feeder
 train_feeder_args:
-  data_path: ../data/groupA1train.h5
+  data_path: ../data/groupAdata.h5
   selectTrain: True
   useMotor: True
 test_feeder_args:
-  data_path: ../data/groupA1testcomp.h5
+  data_path: ../data/groupAdata.h5
   selectTest: True
   selectTrain: False
   useMotor: True
