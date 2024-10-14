@@ -7,8 +7,11 @@ Operating system; Ubuntu 20.04 LTS
 Python version 3.8 or above
 
 Create a virtual environment 
+
 python3 -m venv .venv --system-site-packages
+
 source .venv/bin/activate
+
 pip install -r requirements.txt
 
 To run training program use the following command:
