@@ -3,15 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-# from torchvision import transforms
 
 from opt import load_arg
 from utils import IO, import_class
 from models import Model_vision, masked_loss, kl_criterion, kl_fixed_logvar_criterion
 
-import math
 
-# import visdom
 import time
 
 import itertools
@@ -22,21 +19,11 @@ import pickle
 import os
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 import uuid
 
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-# import random
-# import numpy as np
 
-# torch.manual_seed(12)
-# torch.cuda.manual_seed_all(12)
-# np.random.seed(12)
-# random.seed(12)
-
-# torch.backends.cudnn.deterministic=True
 
 torch.set_num_threads(4)
 
@@ -75,7 +62,7 @@ data_loader['train'] = DataLoader(
     dataset=train_feeder,
     batch_size=args.batch_size,
     shuffle=False,
-    num_workers=0,#args.num_workers * len(device_ids),
+    num_workers=0,
     drop_last=False
 )
 test_feeder = Feeder(**args.test_feeder_args)
@@ -84,7 +71,7 @@ data_loader['test'] = DataLoader(
     dataset=test_feeder,
     batch_size=args.test_batch_size,
     shuffle=False,
-    num_workers=0#args.num_worker * ngpu(self.arg.device)
+    num_workers=0#
 )
 
 l_seq_len, lang_dim = test_feeder[0][3].shape[0], test_feeder[0][3].shape[1]
@@ -172,7 +159,6 @@ for n in range(num_train_samples):
 if args.checkpoint_path:
     checkpoint = torch.load(args.checkpoint_path)
     model.load_state_dict(checkpoint['model'])
-    # intention_params = checkpoint['intention']
 
 if args.lang_loss == 'mse':
     l_criterion = nn.MSELoss(reduction='none')
@@ -180,20 +166,19 @@ elif args.lang_loss =='bce':
     l_criterion = nn.BCELoss(reduction='none')
 elif args.lang_loss =='kld':
     l_criterion = nn.KLDivLoss(reduction='none')
-elif args.lang_loss =='ce': #doesn't work I have to change language output activation
+elif args.lang_loss =='ce': #doesn't work
     l_criterion = nn.CrossEntropyLoss(reduction='none')
-v_criterion = nn.MSELoss(reduction='none')#size_average=False, reduce=False)      # vison loss
+v_criterion = nn.MSELoss(reduction='none')     # vison loss
 if args.model_args['motor_args'].get('is_softmax',True):
-    m_criterion = nn.KLDivLoss(reduction='none')#(size_average=False, reduce=False)    # motor loss
+    m_criterion = nn.KLDivLoss(reduction='none')    # motor loss
 else:
-    m_criterion = nn.MSELoss(reduction='none')  # (size_average=False, reduce=False)    # motor loss
-a_criterion = nn.MSELoss(reduction='none')#(size_average=False, reduce=False)      # attention regularization loss # not used
+    m_criterion = nn.MSELoss(reduction='none')   # motor loss
+a_criterion = nn.MSELoss(reduction='none')    # attention regularization loss # not used
 
 cv_center_loss_criterion = nn.MSELoss(reduction='none')
 
 b_criterion = nn.MSELoss(reduction='mean')             # binding loss
 
-# dev='cpu'
 if args.use_gpu:
     dev = 'cuda:'+str(args.cuda)
 else:
@@ -219,7 +204,7 @@ beta = args.beta
 
 K = args.k
 
-####################ToDO: Fix: Vision and motor loss is not affect by updataing language PB and pvrnn A terms
+
 def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=False, vision_goal=False):
     # print(model)
     model.eval()
@@ -244,47 +229,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
         indices_, visions_, motors_, language_, masks_, l_masks_ = test_feeder.__getitem__(
             s_nr)  # assume only one sample at a time!!
         seq_len = len(visions_)
-        #set prior ? from learning as initial guess:
-        # if posteriors is not None:     # when using training data to check the network
-        #     # print("posterior not none")
-        #     intention_param = {'mu': nn.Parameter(posteriors[s_nr]['mu'].data.clone()),
-        #                        'logvar': nn.Parameter(posteriors[s_nr]['logvar'].data.clone())} #lstm initial states
-        #     intention_pvrnn_mu = nn.Parameter(pv_posterior['mu'][s_nr].data.clone())                  #pvrnn A terms
-        #     intention_pvrnn_logvar = nn.Parameter(pv_posterior['logvar'][s_nr].data.clone())
-        #     if not args.model_args['integration_args']['is_UG']:
-        #         intention_pv_prior_mu, intention_pv_prior_logvar = pv_prior['mu'], pv_prior['logvar']
-        #     else:
-        #         intention_pv_prior_mu, intention_pv_prior_logvar = \
-        #             nn.Parameter(pvrnn_prior_mu_i.data.clone()), nn.Parameter(pvrnn_prior_logvar_i.data.clone())
-        #     if args.model_args['language_args']["is_lang"]:
-        #         if lang_pb is not None:
-        #             intention_pb = nn.Parameter(lang_pb.data.clone())
-        #
-        #         if lang_init is not None:
-        #             intention_lang_inits = nn.Parameter(lang_init.data.clone())
-        # elif prior is not None:
-        #     # print("prior not none")
-        #     intention_param = {'mu': nn.Parameter(prior['mu'].data.clone()),
-        #                        'logvar': nn.Parameter(prior['logvar'].data.clone())}   #lstm initial states
-        #     prior['mu'] = prior['mu'].to(dev)
-        #     prior['logvar'] =prior['logvar'].to(dev)
-        #     intention_pvrnn_mu, intention_pvrnn_logvar = model.pvrnn_init_states(
-        #         args.model_args['integration_args']['layers'], seq_len=seq_len)        #pvrnn A terms
-        #     if args.model_args['integration_args']['is_UG'] == False:
-        #         intention_pv_prior_mu, intention_pv_prior_logvar = nn.Parameter(pv_prior['mu']), nn.Parameter(pv_prior['logvar'])
-        #     else:
-        #         intention_pv_prior_mu, intention_pv_prior_logvar = \
-        #             nn.Parameter(pvrnn_prior_mu_i.data.clone()), nn.Parameter(pvrnn_prior_logvar_i.data.clone())
-        #     if args.model_args['language_args']["is_lang"]:
-        #         if lang_pb is not None:
-        #             intention_pb = nn.Parameter(torch.zeros(pb_size))
-        #             if args.model_args['integration_args']["is_integpb"]:
-        #                 intention_integpb = nn.Parameter(torch.zeros(pb_size))
-        #
-        #         if lang_init is not None:
-        #             intention_lang_inits = nn.Parameter(lang_init_test[s_nr].data.clone())
-        # else:
-            # print("no posterior or prior loaded")
+
         intention_pvrnn_mu, intention_pvrnn_logvar = model.pvrnn_init_states(
             args.model_args['integration_args']['layers'], seq_len=seq_len)
         intention_param = {'mu': nn.Parameter(model.create_init_states()),
@@ -315,15 +260,10 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
             if lang_pb is not None:
                 target_intention_pbs.append(intention_pb)
                 lang_latent.append(intention_pb.detach().cpu())
-                # if args.model_args['integration_args']["is_integpb"]:
-                #     target_intention_integpbs.append(intention_integpb)
-            # if lang_init is not None:
-            #     target_intention_lang_inits.append(intention_lang_inits)
-            #     lang_latent.append(intention_lang_inits.detach().cpu())
 
     stepwidth=test_batch_size
-    su, v_su, m_su, l_su = 0, 0, 0, 0  # successes
-    fa, v_f, m_f, l_f = 0, 0, 0, 0      # failures
+    # su, v_su, m_su, l_su = 0, 0, 0, 0  # successes
+    # fa, v_f, m_f, l_f = 0, 0, 0, 0      # failures
     for u in range(0,len(samples_to_eval), stepwidth):
         samples = samples_to_eval[u:u+stepwidth]
         indices=[]
@@ -475,17 +415,13 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     = model(v_inputs, m_inputs, l_inputs, intention_mu, intention_logvar,
                                               pv_mu, pv_logvar, pv_prior_mu_, pv_prior_logvar_, lang_pbs, gen_lang=pred_lang)
 
-                # model.transformer.where_on_image(attention_wheres, rv_predictions)   # to get the attention box in prediction
+                model.transformer.where_on_image(attention_wheres, rv_predictions)   # to get the attention box in prediction
 
                 if args.model_args['language_args']['is_pb']:
                     lang_pbs = lang_pbs.repeat(len(v_inputs[0]), 1, 1)
                     lang_pb_preds = torch.stack(lang_pb_pred_list)
 
                     b_loss = b_criterion(lang_pb_preds, lang_pbs)
-                # else:
-                #     lang_init_states = lang_init_state[0].repeat(len(v_inputs[0]), 1, 1)
-                #     lang_init_preds = torch.stack(lang_init_pred_list)
-                #     b_loss = b_criterion(lang_init_preds, lang_init_states)
 
                 l_loss = masked_loss(l_criterion, l_predictions, l_targets, lang_mask_targets)                # language loss
                 if len(motors) > 0: m_loss = masked_loss(m_criterion, m_predictions, m_targets, mask_targets) # motor loss
@@ -495,7 +431,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 plot_losses = []    # loss used to get the results for plotting | this is not optimized
                 if pred_lang: # generate language when vision and motor are provided
                     for i_loss in range(v_targets.shape[0]):   #v_targets.shape[0] = batchsize which is always 1 for now
-                        closs = 100*v_loss #F.mse_loss(rv_predictions[i_loss, :], v_targets[i_loss, :])  # , mask_targets)
+                        closs = 1*v_loss  #F.mse_loss(rv_predictions[i_loss, :], v_targets[i_loss, :])  # , mask_targets)
                         closs += 1*m_loss
                         closs += 1*b_loss
                         _loss += closs
@@ -533,19 +469,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                         plot_losses[i_loss] += b_loss.data.item()
                         _loss += closs
 
-                # if prior is not None:
-                #     kl_loss = kl_criterion(intention_mu, intention_logvar, prior['mu'], prior['logvar'])
-                # else:
-                #     intention_kl = {'mu': torch.stack([target_intention_params[i]['mu'] for i in indices], dim=0),
-                #                     'logvar': torch.stack([target_intention_params[i]['logvar'] for i in indices], dim=0)}
-                #     intention_kl_mu = intention_kl['mu'].to(dev)
-                #     intention_kl_logvar = intention_kl['logvar'].to(dev)
-                #     intention_kl_mu = intention_kl_mu.repeat(sample_size, 1)
-                #     intention_kl_logvar = intention_kl_logvar.repeat(sample_size, 1)
-                #     kl_loss = kl_criterion(intention_mu, intention_logvar, intention_kl_mu, intention_kl_logvar)
-                # if args.model_args['integration_args']['is_pvrnn']:
-                #     kl_loss = torch.zeros(1)
-                loss = _loss + pv_kl  # + beta*kl_loss
+                loss = _loss + pv_kl
                 # else:
                 #     loss = _loss + beta * kl_loss
                 print("v_loss = {:.6f} | m_loss = {:.6f} | l_loss = {:.6f} |b_loss = {:.6f} | pv_kl = {:.6f}".format(
@@ -579,21 +503,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     closs += F.mse_loss(rv_predictions[i_loss,:4], v_targets[i_loss,:4]) # vision loss from first few steps
                     plot_losses[i_loss] += closs.data.item()
                     _loss += closs
-                # if args.model_args['integration_args']['is_pvrnn'] == False:
-                    #KL loss:
-                #     if prior is not None:
-                #         kl_loss = kl_criterion(intention_mu, intention_logvar, prior['mu'], prior['logvar'])
-                #     else:
-                #         intention_kl = {'mu': torch.stack([posteriors[i]['mu'] for i in indices], dim=0),
-                #                      'logvar': torch.stack([posteriors[i]['logvar'] for i in indices], dim=0)}
-                #         intention_kl_mu = intention_kl['mu'].to(dev)
-                #         intention_kl_logvar = intention_kl['logvar'].to(dev)
-                #         intention_kl_mu = intention_kl_mu.repeat(sample_size, 1)
-                #         intention_kl_logvar = intention_kl_logvar.repeat(sample_size, 1)
-                #         kl_loss = kl_criterion(intention_mu, intention_logvar, intention_kl_mu, intention_kl_logvar)
-                #     loss = _loss + beta * kl_loss
-                # else:
-                #     kl_loss = torch.zeros(1)
+
                     loss = _loss + pv_kl
 
                 print("v_loss:{:.6f} | m_loss:{:.6f} | l_loss:{:.6f} | pv_kl:{:.6f}".format(
@@ -603,15 +513,12 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
             plot_idxs=[]
             for i_loss in range(v_targets.shape[0]):
                 #i_loss = batch number for multiple batches? here it does nothing, need to make this work for multiple batches
-                # print("vtar_shape " + str(v_targets.shape[0]))
-                # print("i_loss " + str(i_loss))
+
                 c_loss = plot_losses[i_loss]
                 c_cfg = {'mu': intention_mu[i_loss].cpu().detach().numpy(),
                          'logvar': intention_logvar[i_loss].cpu().detach().numpy(),
                          'pv_mu': pv_mu[i_loss].cpu().detach().numpy(),
                          'pv_logvar': pv_logvar[i_loss].cpu().detach().numpy(),
-                         # 'init_cell': initstates[0][i_loss].cpu().detach().numpy(),
-                         # 'init_hidden': initstates[1][i_loss].cpu().detach().numpy(),
                          'step': step,
                          'length': length_idxs[i_loss]}
                 c_min_loss = optimization_results[indices_local_rep[i_loss]]['min_loss']
@@ -627,8 +534,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     vision_predictions = (rv_predictions[i_loss, :, :, :].detach().cpu() + 1) * 0.5
                     vision_targets = (v_targets[i_loss, :, :, :].detach().cpu() + 1) * 0.5
                     cv_prediction = (cv_predictions[i_loss, :, :, :].detach().cpu() + 1) * 0.5
-                    # raw_cv_pred = (raw_cv_pred[i_loss, :, :, :].detach().cpu() + 1) * 0.5
-                    # print("cv_shape = {}".format(cv_prediction.shape))
+
 
                     l0mem = None
                     l0mem_outmix = None
@@ -670,17 +576,15 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     traj_pred = m_predictions[i_loss].detach().cpu().detach()
                     traj_target = m_targets[i_loss].detach().cpu().detach()
 
-                    # inte_states = int_states
+
 
                     optimization_results[indices_local_rep[i_loss]]['min_vis']={'pred': vision_predictions.numpy(),
                                                                           'cv_pred': cv_prediction.numpy(),
                                                                           'target': vision_targets.numpy(),
                                                                           'l0mem': l0mem,
                                                                           'mem': bg.numpy(),
-                                                                          # 'v_mask': v_masks.numpy(),
                                                                           'traj_pred': traj_pred.numpy(),
                                                                           'traj_target': traj_target.numpy(),
-                                                                          # 'integration_states': inte_states,
                                                                           'm_cv_states': m_cv_state,
                                                                           'v_states': v_state,
                                                                           'l0mem_selection': l0mem_selection,
@@ -705,16 +609,10 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                         optimization_results[indices_local_rep[i_loss]]['min_vis']['l_targ'] =  l_target
                         if args.model_args['language_args']['is_pb']:
                             optimization_results[indices_local_rep[i_loss]]['min_vis']['l_pb'] = lang_pbs.detach().cpu().numpy()
-                        # else:
-                        #     optimization_results[indices_local_rep[i_loss]]['min_vis'][
-                        #         'l_init'] = lang_init_states.detach().cpu().numpy()
-                    #only save new best solutions!
+
                     optimization_results[indices_local_rep[i_loss]]['configs'].append(c_cfg)
 
                 optimization_results[indices_local_rep[i_loss]]['losses'].append(c_loss)
-
-            # print("lang_init = {}".format(lang_intention[0]))
-            # print("_lang init = {}".format(target_intention_lang_inits[0].detach().cpu().numpy()))
 
 
             regression_optimizer['pv_mu'].zero_grad()
@@ -726,9 +624,6 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
             regression_optimizer['lang_pb'].zero_grad()
 
             loss.backward()
-            # norm = nn.utils.clip_grad_norm([intention_params[0]], 1)
-            # print(norm)
-            # norm = nn.utils.clip_grad_norm([intention_params[i]], 1)
 
             regression_optimizer['pv_mu'].step()
             regression_optimizer['pv_logvar'].step()
@@ -737,8 +632,6 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 regression_optimizer['pvrnn_prior_i']['logvar'].step()
 
             regression_optimizer['lang_pb'].step()
-                # else:
-                #     regression_optimizer['lang_init_state'].step()
 
             t_end = time.time()
             print('time :', t_end-t_start)
@@ -747,7 +640,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
 
             if do_eval_this_iter and False:
                 # save results
-                # if vis.check_connection():
+
                 model.transformer.where_on_image(attention_wheres, rv_predictions)
 
                 vision_predictions = (rv_predictions.detach().data.cpu() + 1) * 0.5
@@ -755,9 +648,6 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 cv_predictions = (cv_predictions.detach() + 1) * 0.5
                 if (model.pv_available):
                     pv_predictions = (pv_predictions.detach().data.cpu() + 1) * 0.5
-                # cv_predictions = cv_predictions.detach().data.cpu()
-                # pv_predictions = pv_predictions.detach().data.cpu()
-
                 # v_targets = (v_targets.detach().data.cpu() + 1) * 0.5
                 motor_predictions = m_predictions.detach().data.cpu()
 
@@ -772,8 +662,6 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     wnds[:, 1, px:px + 2, py:py + 2] = -1
                     wnds[:, 2, px:px + 2, py:py + 2] = -1
                 wnds_re = model.transformer.window_to_image(wnds, attention_wheres[0], None)
-                # vis.images((wnds.data.cpu() + 1) * 0.5, opts={'title': 'cv target'})
-                # vis.images((wnds_re.data.cpu() + 1) * 0.5, opts={'title': 'reconstructed_'})
 
                 prewdists = rv_predictions-  visions[:,:-1,:,:]
                 v3 = prewdists[0].clone().detach().abs().cpu()
@@ -782,14 +670,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 else:
                     v4 = v3[:, 0:1, :, :] / v3[:, 0:1, :, :].max()
 
-                # vis.images(v4, opts={'title': 'err' })
-                # vis.images((visions[0,:-1,:,:].detach().cpu()+1)*0.5, opts={'title': 'orig'})
-                # vis.images((rv_predictions[0, :, :, :].detach().cpu() + 1) * 0.5, opts={'title': 'predict'})
-
-                # vis.images((cv_predictions[0, :, :, :].detach().cpu() ) , opts={'title': 'cv predicted'})
-
                 wnds_cv = model.transformer.image_to_window(cv_predictions[0, :, :, :], attention_wheres[0])
-                # vis.images((wnds_cv.detach().cpu() ) , opts={'title': 'predict_focus'})
 
                 v_mix_mask = v_mask_states[2][0].clone().detach().data.cpu()
                 # vis.images((v_mix_mask), opts={'title': 'MixMask memory refresh' })
@@ -800,12 +681,6 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
 
                 background = backgrounds[0].clone().detach().data.cpu()
                 background[background > 1.0] = 1.0  # TODO bakckground > 0 ??
-                # vis.images((background + 1) * 0.5, opts={'title': 'memory'})
-
-                # cv_memstates = cv_ln_memorystates[0][0].clone().detach().data.cpu()
-                # vis.images((cv_memstates + 1) * 0.5, opts={'title': 'cv memory l0'})
-                # cv_memstates = cv_ln_memorystates[1][0].clone().detach().data.cpu()
-                # vis.images((cv_memstates + 1) * 0.5, opts={'title': 'cv memory l1'})
 
                 # inverse TPM
                 imgVis = L0Memory_states[0][0].clone().detach().data.cpu()
@@ -829,35 +704,21 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                     io.save_mot(m, 'motor_{}_{:04d}'.format(step, idx))
                     images = masked_v #[transforms.ToPILImage()(image) for image in masked_v]
                     io.save_gif(images[::2][:40], 'vision_{}_{:04d}'.format(step, idx))
-                    # io.save_video(images, 'vision_{}_{:04d}'.format(step, idx))
-                    # print("video saved")
                     images = masked_cv #[transforms.ToPILImage()(image) for image in masked_cv]
                     io.save_gif(images[::2][:40], 'cv_{}_{:04d}'.format(step, idx))
-                    # io.save_video(images, 'cv_{}_{:04d}'.format(step, idx))
 
                     if (model.pv_available):
                         images = masked_pv #[transforms.ToPILImage()(image) for image in masked_pv]
                         io.save_gif(images[::2][:40], 'pv_{}_{:04d}'.format(step, idx))
 
                     io.save_gif(bg[::2][:40], 'memory_{}_{:04d}'.format(step, idx))
-                    # io.save_video(bg[::2][:40], 'memory_{}_{:04d}'.format(step, idx))
-
                     wnds = model.transformer.image_to_window(mem_outmix[:], att[:])
 
                     maskedl0mem = ((l0mem + 1) * 0.5)*wnds
                     io.save_gif(maskedl0mem[:10], 'maskedl0mem_{}_{:04d}'.format(step, idx))
-                    # io.save_video(maskedl0mem, 'maskedl0mem_{}_{:04d}'.format(step, idx))
 
                     unmaskedl0mem = ((l0mem + 1) * 0.5)
                     io.save_gif(unmaskedl0mem[::2][:40], 'unmaskedl0mem_{}_{:04d}'.format(step, idx))
-                    # io.save_video(unmaskedl0mem, 'unmaskedl0mem_{}_{:04d}'.format(step, idx))
-
-                    # io.save_gif(v_targets, 'vision_target_{:04d}'.format(idx))
-                    # images = [transforms.ToPILImage()(image) for image in masked_cv]
-                    # io.save_gif(images, 'write_mask_{:04d}'.format(idx))
-                    # images = [transforms.ToPILImage()(image) for image in masked_pv]
-                    # io.save_gif(images, 'canvas_mask_{:04d}'.format(idx))
-
                     io.save_txt(masked_m, 'motor_{}_{:04d}'.format(step, idx))
 
                     # import pdb
@@ -886,9 +747,6 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 title = "pred = {}, target = {}".format(l_str_pred, l_str_target)
             else:
                 title = "motor"
-            # ib_state = optimization_results[i]['min_vis']['bind_states']
-            # integration_states = optimization_results[i]['min_vis']['integration_states']
-            # pvrnn_d = optimization_results[i]['min_vis']['pvrnn_d']
             v_states = optimization_results[i]['min_vis']['v_states']
             l0mem_selection = optimization_results[i]['min_vis']['l0mem_selection']
             l0mem_maskupscale = optimization_results[i]['min_vis']['l0mem_maskupscale']
@@ -933,7 +791,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 b_state_dict['l_pred'] = l_pred
                 b_state_dict['l_targ'] = l_target
             io.save_b_state(b_state_dict, foldernames[i]+'/b_state')
-            io.save_gif(vis_pred[::f], foldernames[i]+'/pred')  #io.save_gif(vis_pred, 'pred_{}_{:04d}'.format(step, idx))
+            io.save_gif(vis_pred[::f], foldernames[i]+'/pred')
             io.save_gif(vis_target[::f], foldernames[i]+'/target')
             io.save_gif(cv_pred[::f], foldernames[i] + '/cv_pred')
             io.save_gif((vis_mem[::f] + 1) * 0.5, foldernames[i] + '/l0mem')
@@ -1009,29 +867,8 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
         vis_diff = F.mse_loss(vis_pred, vis_target).mean()
 
         diff = mot_diff + vis_diff
-        if mot_diff <= 0.02:
-            m_su += 1
-        else:
-            m_f += 1
-        if vis_diff <= 0.035:
-            v_su += 1
-        else:
-            v_f += 1
-        if args.model_args['language_args']['is_lang'] == True:
-            lang_diff = l_criterion(l_pred, l_target).mean()
-            for i in range(len(l_target)):
-                if np.argmax(l_pred[i]) == np.argmax(l_target[i]):
-                    l_su += int(1/len(l_target))
-                else:
-                    l_f += int(1/len(l_target))
-            diff += lang_diff
-        if diff <= 0.06:
-            su += 1
-            print('success')
-        else:
-            fa += 1
-            print('failure')
-    return lang_labels, lang_latent, [su, v_su, m_su, l_su], [fa, v_f, m_f, l_f]
+
+    return lang_labels, lang_latent
 
 def start():
     io.print_log('Parameters:\n{}\n'.format(str(vars(args))))
@@ -1065,7 +902,7 @@ def start():
 
             with open(work_dir+prefix + 'notes.txt', 'x') as f:
                 f.write("notes on evaluation \n")
-                # if args.model_args['integration_args']['is_pvrnn']:
+
                 posterior_mu_train = io.load_from_checkpoint(checkpoint, param='pvrnn_pos_mu')
                 posterior_logvar_train = io.load_from_checkpoint(checkpoint, param='pvrnn_pos_logvar')
                 if args.model_args['integration_args']['is_UG'] == False:
@@ -1084,31 +921,14 @@ def start():
                     lang_pb_train = torch.cat(lang_pb_train_).detach().cpu()
                     lang_train_labels = io.load_from_checkpoint(checkpoint, param='lang_train_labels')
                     lang_train_labels = torch.cat(lang_train_labels).detach().cpu()
-                    # else:
-                    #     lang_init = io.load_from_checkpoint(checkpoint, param='lang_init_state')
-                    #     lang_init_ = [lang_init[i].view(1, -1) for i in range(len(lang_init))]
-                    #     lang_init_train = torch.cat(lang_init_).detach().cpu()
-                    #     lang_train_labels = io.load_from_checkpoint(checkpoint, param='lang_train_labels')
-                    #     lang_train_labels = torch.cat(lang_train_labels).detach().cpu()
 
-                    # if args.model_args['language_args']['is_pb']:
-                    lang_pb = lang_pb_test #io.load_from_checkpoint(checkpoint, param='lang_pb')
-                        # lang_pb = io.load_lang_pb_from_checkpoint(checkpoint)
-                        # lang_init=None
-                    # else:
-                    #     lang_init = pca_lang_test #io.load_lang_init_from_checkpoint(checkpoint)
-                    #     lang_pb=None
+                    lang_pb = lang_pb_test
                 # evaluation
                 io.print_log('Evaluation Start:')
                 if args.test_feeder_args['selectTrain']:
                     f.write("using training data for evaluation \n")
-                    #test posterior generation to validate training.
-                    # if args.model_args['language_args']['is_pb']:
                     lang_pb_load = io.load_from_checkpoint(checkpoint, param='lang_pb')
-                    lang_init_load = None
-                    # else:
-                    #     lang_init_load = io.load_from_checkpoint(checkpoint, param='lang_init_state')
-                    #     lang_pb_load = None
+
                     pv_pos_mu, pv_pos_logvar = io.load_from_checkpoint(checkpoint, param='pvrnn_pos_mu'), io.load_from_checkpoint(checkpoint, param='pv_pos_logvar')
                     pv_posterior_load = {'pv_pos_mu': pv_pos_mu, 'pv_pos_logvar': pv_pos_logvar}
                     lang_labels, lang_latent, su_list, f_list = test(pv_posterior=pv_posterior_load, pv_prior=pvrnn_prior,
@@ -1139,12 +959,7 @@ def start():
                         lang_latent = torch.cat(lang_latent).detach().cpu()
                         lang_latent_ = torch.cat((lang_pb_train, lang_latent))
                         lang_labels_ = torch.cat((lang_train_labels, lang_labels))
-                    # else:
-                    #     lang_labels = torch.cat(lang_labels)
-                    #     lang_latent = [lang_latent[i].view(1, -1) for i in range(len(lang_latent))]
-                    #     lang_latent = torch.cat(lang_latent).detach().cpu()
-                    #     lang_latent_ = torch.cat((lang_init_train, lang_latent))
-                    #     lang_labels_ = torch.cat((lang_train_labels, lang_labels))
+
                     io.plot_lang_latent(dir=work_dir+prefix, lang_states=lang_latent_.numpy(), labels=lang_labels_.numpy(), colors=['red', 'green', 'blue', 'purple', 'yellow'], fn=fn)
             f.close()
 
