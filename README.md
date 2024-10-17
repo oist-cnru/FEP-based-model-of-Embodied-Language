@@ -1,15 +1,17 @@
 # FEP-based-model-of-Embodied-Language
 Public repository (in development) to share for the purpose of replicating the results of the associated paper.
 
-**Project Overview**
+\lf{**Project Overview**}
 
 Compositionality is the ability to compose/decompose a whole into reusable parts and it essential for generailization. It is a property prevelant in Language, in this project we use a neural network architecture based on the Free energy principle to study the development of compositionality in robotic systems through interactive learning. 
 
 Documentation is still in progress.
+
 Datasets used for training and evaluation are available here (http://datadryad.org/stash/share/6duYewahQx_Xb7FIgZkm83jKTnOIWEKcHfUlpSVJk8Y).
 
-Operating system; Ubuntu 20.04 LTS
-Python version 3.8 or above
+**Operating system**: Ubuntu 20.04 LTS
+
+**Python** version 3.8 or above
 
 Create a virtual environment 
 
