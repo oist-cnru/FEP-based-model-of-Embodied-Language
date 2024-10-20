@@ -25,12 +25,9 @@ class CustomConvLSTMCell(nn.Module):
             self.conv_bottomup = nn.Conv2d(input_size[0], 4 * hidden_size, kernel_size=kernel_size[0],
                                            stride=stride[0], padding=padding[0])
 
-        # if bottomup == True:
-            # self.conv_bottomup = nn.Conv2d(input_size[0], 4*hidden_size, kernel_size=kernel_size[0], stride=stride[0], padding=padding[0])
+
         filter_size=None
         if input_dim is not None:
-            #input_dim[0] layer -1 size - bottom up
-            #input_dim[1]  layer +1 size - top down
             filter_size = math.floor((input_dim[0]+2*padding[0]-1*(kernel_size[0]-1) -1)/stride[0] + 1)
 
         # self.conv_bottomup.bias.data.zero_()

@@ -11,7 +11,7 @@ from .utils import PVMTRNNCell
 
 class Integration_bind(nn.Module):
 	"""
-	Integration network with language binding in final step
+	Integration network with language binding
 	"""
 	def __init__(self, in_sizes, layers, dropout_rate=0.5, is_UG=False):
 		super(Integration_bind, self).__init__()
@@ -30,7 +30,6 @@ class Integration_bind(nn.Module):
 			self.integration_net.append(layer)
 
 	def forward(self, incomings, sxs, mu_q, sigma_q, mu_p_i, logvar_p_i, gen_prior=False, step=0): #
-		# ToDo: make mu and sigma for pvrnn work for multi-layer pvrnn
 		# assert len(sxs) == len(incomings), ''
 		zs = []
 		ss = []
