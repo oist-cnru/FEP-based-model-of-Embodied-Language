@@ -850,7 +850,7 @@ def test(pv_posterior=None, pv_prior=None, lang_pb=None, prefix='', pred_lang=Fa
                 # io.save_video((c_im1+1)*0.5, foldernames[i]+'/l1memmix')
                 # io.save_video((maskedl0mem+1)*0.5, foldernames[i]+'/l1masked')
                 io.save_video((vis5+1)*0.5, foldernames[i]+'/vis', figsize=(0.01*vis5.shape[2], 0.1*vis5.shape[3]))
-            io.plot_latentstates(int_states, name=foldernames[i]+"/pvrnn_d")
+            # io.plot_latentstates(int_states, name=foldernames[i]+"/pvrnn_d")
             mot_diff = io.save_motor(m_pred, m_target, foldernames[i] + "/motor", softmax_config=softmax_config, title=title)
             print(title)
             # io.save_video((vis_mem+1)*0.5, foldernames[i]+'/l0mem')
@@ -931,7 +931,7 @@ def start():
 
                     pv_pos_mu, pv_pos_logvar = io.load_from_checkpoint(checkpoint, param='pvrnn_pos_mu'), io.load_from_checkpoint(checkpoint, param='pv_pos_logvar')
                     pv_posterior_load = {'pv_pos_mu': pv_pos_mu, 'pv_pos_logvar': pv_pos_logvar}
-                    lang_labels, lang_latent, su_list, f_list = test(pv_posterior=pv_posterior_load, pv_prior=pvrnn_prior,
+                    lang_labels, lang_latent = test(pv_posterior=pv_posterior_load, pv_prior=pvrnn_prior,
                                                     lang_pb=lang_pb_load, prefix=prefix,
                                                     pred_lang=False, vision_goal=False)
                 elif args.model_args['language_args']['is_lang']:
@@ -940,17 +940,16 @@ def start():
 
                     fn = "lang_latent_{}_predlang_{}".format(trainstate, pred_lang)
                     f.write(" predicting language = {}\n vision goal = {}".format(pred_lang, vision_goal))
-                    lang_labels, lang_latent, su_list, f_list = test(pv_prior=pvrnn_prior,
+                    lang_labels, lang_latent = test(pv_prior=pvrnn_prior,
                                                                      lang_pb=lang_pb, prefix=prefix,
                                                                      pred_lang=pred_lang, vision_goal=vision_goal)
                 elif args.model_args['integration_args']['is_pvrnn']:
                     print("pvrnn + no language")
-                    lang_labels, lang_latent, su_list, f_list = test(pv_prior=pvrnn_prior, prefix=prefix,
+                    lang_labels, lang_latent= test(pv_prior=pvrnn_prior, prefix=prefix,
                                                                      vision_goal=True)
                 else:
                     print("no language")
-                    lang_labels, lang_latent, su_list, f_list = test(prefix=prefix, vision_goal=True)
-                io.print_log("successes = {}| failures = {}".format(su_list, f_list))
+                    lang_labels, lang_latent= test(prefix=prefix, vision_goal=True)
                 io.print_log('Done.\n')
                 if args.model_args['language_args']['is_lang']:
                     if args.model_args['language_args']['is_pb']:
